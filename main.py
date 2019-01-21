@@ -3,8 +3,10 @@ from src.game import *
 from settings import RUNNERS_DIR
 
 
-def main(bot1_runner, bot2_runner):
-    game = Game(join(RUNNERS_DIR, bot1_runner), join(RUNNERS_DIR, bot2_runner))
+def main(*bot_names):
+    runner_paths = [join(RUNNERS_DIR, name) for name in bot_names]
+
+    game = Game(*runner_paths)
     game.start()
 
 

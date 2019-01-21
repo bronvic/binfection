@@ -34,12 +34,10 @@ FIELD_HEIGHT = 1000
 SPAWN_BORDER_GAP = 1
 # Distance between spawns in cells
 SPAWNS_DISTANCE = 1
-# # Number of spawns for each team
-# SPAWNS_NUMBER = 1
+# Number of spawns for each team
+SPAWNS_NUMBER = 1
 # Initial number of warriors
 WARRIORS_INIT_NUMBER = 10
-# # Number of players
-# PLAYERS_NUMBER = 2
 
 #
 # Cells parameters

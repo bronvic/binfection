@@ -35,16 +35,16 @@ Game communicates with bots using files with json. Your runner will be called wi
 You have to write json with your instructions to this file in the end
 
 json which game will put to file looks like this:
-```
+```json
   {
     "cells": [{
         "owner": "alice",
         "units": 5,
         "x": 4,
-        "y": 3,
-      },
+        "y": 3
+      }
     ],
-    "blob": {},
+    "blob": {}
   }
 ```
 where
@@ -55,21 +55,43 @@ where
 
 
 Your instructions should look like this:
-```
+```json
 {
   "moves": [{
       "x": 4,
       "y": 3,
-      "direction": 2,
-    },
+      "direction": 2
+    }
   ],
-  "blob": {},
+  "blob": {}
 }
 ```
 where
-* x, y - coordinats of the cell you whant to move
+* x, y - coordinates of the cell you want to move
 * direction - direction to move. 0 - UP, 1 - RIGHT, 2 - DOWN, 3 - LEFT
 * blob - any data you want to save for the next 
 
 ## Settings
-Check out settings in settings.py file. You can override any setting in settings.ini
+Check out settings in settings.py file. You can override any setting in settings.ini, which should look like this:
+```ini
+[GENERAL]
+TURNS_LIMIT: 20
+WARRIORS_LIMIT: 9
+WARRIORS_INIT_NUMBER: 5
+
+FIELD_WIDTH: 7
+FIELD_HEIGHT: 7
+```
+
+## Final output
+You will find `{game_id}.res` file in `games` directory after your game finished.
+It will contain json with list of lists of cells. Each element of top level list contains cells for the turn.
+First element contains cells just after spawn
+Second - cells after players make there moves
+Third - cells after grow faze
+Fourth - cells after players moves again and so on
+
+Thus elements of array correspond such sequence:
+```
+spawn -> turn 1 -> grow -> turn 2 -> grow -> turn 3 ...
+```

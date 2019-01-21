@@ -38,7 +38,7 @@ def out_of_range(coords):
 
     if x < 0 or y < 0:
         return True
-    if x > settings.FIELD_WIDTH or y > settings.FIELD_HEIGHT:
+    if x >= settings.FIELD_WIDTH or y >= settings.FIELD_HEIGHT:
         return True
 
     return False

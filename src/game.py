@@ -56,50 +56,65 @@ class Bot:
 
 
 class Game:
-    # TODO: I want any number of players, not just 2
     bots = []
-
+    # list of field
+    game_process = []
     # Hashmap for used cells
     # Tuple of coordinates is a key, cell is a value
     cells = {}
 
     session_id = None
 
-    def __init__(self, bot1_path, bot2_path):
-        assert os.path.isfile(bot1_path), "{} is not file".format(bot1_path)
-        assert os.access(bot1_path, os.X_OK), "{} is not executable".format(bot1_path)
-
-        assert os.path.isfile(bot2_path), "{} is not file".format(bot2_path)
-        assert os.access(bot2_path, os.X_OK), "{} is not executable".format(bot2_path)
-
+    def __init__(self, *runner_paths):
         self.session_id = uuid.uuid4()
-        # # DEBUG
+        # DEBUG
         # self.session_id = 0
+        self.result_file = os.path.join(settings.GAMES_DIR, str(self.session_id) + '.res')
 
-        self.bots.append(Bot(bot1_path))
-        self.bots.append(Bot(bot2_path))
+        for path in runner_paths:
+            assert os.path.isfile(path), "{} is not file".format(path)
+            assert os.access(path, os.X_OK), "{} is not executable".format(path)
+
+            self.bots.append(Bot(path))
 
     def bot_names(self):
         return [bot.name for bot in self.bots]
 
+    # Check if given number of bots be placed at the field
+    def placement_is_possible(self):
+        # TODO: calculate it somehow. This implementation totally temporary
+        return settings.FIELD_WIDTH * settings.FIELD_HEIGHT >= len(self.bots)
+
     def generate_start_positions(self):
-        x1 = random_position(settings.FIELD_WIDTH)
-        y1 = random_position(settings.FIELD_HEIGHT)
-        print("x1 = {}, y1 = {}".format(x1, y1))
+        assert self.placement_is_possible(), "Can't place {} bots on field with given rules".format(len(self.bots))
+        # TODO: FIELD_HEIGHT here is quite random parameter. I took it because I want number of attempts to depend on the size of the field
+        limit_of_attempts = settings.FIELD_HEIGHT
 
-        self.cells[(x1, y1)] = Cell(self.bots[0].name, settings.WARRIORS_INIT_NUMBER)
+        for bot in self.bots:
+            attempt = 0
+            x = random_position(settings.FIELD_WIDTH)
+            y = random_position(settings.FIELD_HEIGHT)
+            print("{}\tx = {}, y = {}".format(bot.name, x, y))
 
-        x2 = random_position(settings.FIELD_WIDTH)
-        y2 = random_position(settings.FIELD_HEIGHT)
-        print("x2 = {}, y2 = {}".format(x2, y2))
+            while any(abs(x - x0) <= settings.SPAWNS_DISTANCE and abs(y - y0) <= settings.SPAWNS_DISTANCE for (x0, y0) in self.cells) and attempt < limit_of_attempts:
+                x = random_position(settings.FIELD_WIDTH)
+                y = random_position(settings.FIELD_HEIGHT)
+                print("Rerender")
+                print("{}\tx = {}, y = {}".format(bot.name, x, y))
 
-        while abs(x1 - x2) <= settings.SPAWNS_DISTANCE and abs(y1 - y2) <= settings.SPAWNS_DISTANCE:
-            x2 = random_position(settings.FIELD_WIDTH)
-            y2 = random_position(settings.FIELD_HEIGHT)
-            print("Rerender")
-            print("x2 = {}, y2 = {}".format(x2, y2))
+                attempt += 1
 
-        self.cells[(x2, y2)] = Cell(self.bots[1].name, settings.WARRIORS_INIT_NUMBER)
+            if attempt >= limit_of_attempts:
+                print("Warning! Can't place bots randomly")
+                break
+            else:
+                self.cells[(x, y)] = Cell(bot.name, settings.WARRIORS_INIT_NUMBER)
+
+        if len(self.cells) * settings.SPAWNS_NUMBER != len(self.bots):
+            # TODO: try to place them "manually", i think.
+            return False
+        else:
+            return True
 
     def dump_to_files(self):
         bot_processed = {}
@@ -254,6 +269,19 @@ class Game:
             if cell.units > settings.WARRIORS_LIMIT:
                 cell.units = settings.WARRIORS_LIMIT
 
+    def save_current_position(self):
+        cells = []
+        for coords, cell in self.cells.items():
+            x, y = coords
+            cells.append({
+                "owner": cell.owner,
+                "units": cell.units,
+                "x": x,
+                "y": y,
+            })
+
+        self.game_process.append(cells)
+
     def start(self):
         # Load parameters that was unknown on init
         for bot in self.bots:
@@ -264,9 +292,15 @@ class Game:
         print("Start game with uuid {}".format(self.session_id))
         print("Bots: {}".format(self.bot_names()))
 
-        self.generate_start_positions()
+        ok = self.generate_start_positions()
+        if not ok:
+            print("Error! Can't generate start position")
+            # TODO: return code?
+            return
+
         print("\nStart position")
         self.field_debug_print()
+        self.save_current_position()
 
         turn = 0
         while turn < settings.TURNS_LIMIT:
@@ -293,20 +327,31 @@ class Game:
             self.execute_instructions(moves_to_dict(checked_moves))
             print("\nTurn {}".format(turn))
             self.field_debug_print()
+            self.save_current_position()
 
             self.grow()
             print()
             self.field_debug_print()
+            self.save_current_position()
 
-            turn = turn + 1
+            turn += 1
+
+        with open(self.result_file, 'w') as f:
+            f.write(json.dumps(self.game_process))
+
+        for bot in self.bots:
+            os.remove(bot.file())
 
     def field_debug_print(self):
+        max_len = len(str(settings.WARRIORS_LIMIT))
         for y in range(0, settings.FIELD_HEIGHT):
             for x in range(0, settings.FIELD_WIDTH):
                 try:
                     cell = self.cells[(x, y)]
-                    print("{}{} ".format(cell.owner[0].upper(), cell.units), end='')
+                    units_formatted = str(cell.units).ljust(max_len)
+                    print(f'{cell.owner[0].upper()}{units_formatted} ', end='')
                 except KeyError:
-                    print("_0 ", end='')
+                    units_formatted = '0'.ljust(max_len)
+                    print(f'_{units_formatted} ', end='')
 
             print()

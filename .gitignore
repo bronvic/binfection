@@ -106,3 +106,4 @@ venv.bak/
 .idea
 games/*
 !games/.holder
+*.ini
